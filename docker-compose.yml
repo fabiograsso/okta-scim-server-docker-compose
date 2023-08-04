@@ -1,0 +1,37 @@
+version: '3.8'
+services:
+
+  scim-server:
+    build: ./okta-scim-server
+    ports:
+      - 8083:5000
+    depends_on:
+      - db
+
+  db:
+    image: postgres:13-alpine
+    volumes:
+      - ./data/postgresql:/var/lib/postgresql/data:rw
+    environment:
+      POSTGRES_HOST_AUTH_METHOD: trust
+      DATABASE_HOST: "127.0.0.1"
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: scim  
+
+  ngrok:
+    image: ngrok/ngrok:alpine
+    depends_on:
+      - scim-server
+    volumes:
+      - ./config/ngrok.yml:/var/lib/ngrok/ngrok.yml:ro
+    ports:
+      - 8081:4040
+
+  adminer:
+    image: adminer:standalone
+    restart: always
+    depends_on: 
+      - db
+    ports:
+      - 8082:8080

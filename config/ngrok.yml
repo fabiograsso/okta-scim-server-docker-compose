@@ -1,0 +1,8 @@
+version: "2"
+web_addr: 0.0.0.0:4040
+region: eu
+#authtoken: 
+tunnels:
+  scim-net:
+    addr: http://scim-server:5000
+    proto: http
