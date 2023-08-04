@@ -4,7 +4,7 @@ services:
   scim-server:
     build: ./okta-scim-server
     ports:
-      - 5083:5000
+      - 5003:5000
     depends_on:
       - db
 
@@ -13,10 +13,10 @@ services:
     volumes:
       - ./data/postgresql:/var/lib/postgresql/data:rw
     ports:
-      - 5084:5432
+      - 5004:5432
     environment:
       POSTGRES_HOST_AUTH_METHOD: trust
-      DATABASE_HOST: "127.0.0.1"
+      DATABASE_HOST: "0.0.0.0"
       POSTGRES_USER: root
       POSTGRES_PASSWORD: root
       POSTGRES_DB: scim  
@@ -28,7 +28,7 @@ services:
     volumes:
       - ./config/ngrok.yml:/var/lib/ngrok/ngrok.yml:ro
     ports:
-      - 5081:4040
+      - 5001:4040
 
   adminer:
     image: adminer:standalone
@@ -36,4 +36,4 @@ services:
     depends_on: 
       - db
     ports:
-      - 5082:8080
+      - 5002:8080

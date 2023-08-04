@@ -28,16 +28,16 @@ Remember that the free version of ngrok uses dynamic URLs, so at every execution
 
 |URL/PORT |Description|
 |-----------------------|-----------|
-| http://localhost:5081 | ngrok console |
-| http://localhost:5082 | Adminer (for checking the db content) |
-| http://localhost:5083 | Okta Scim Server (for local debugging and testing) |
-| localhost:5084        | PostgresSQL Database |
+| http://localhost:5001 | ngrok console |
+| http://localhost:5002 | Adminer (for checking the db content) |
+| http://localhost:5003 | Okta Scim Server (for local debugging and testing) |
+| localhost:5004        | PostgresSQL Database |
 
 The Postgres data folder is saved in `data/postgresql` in order to make the db persistent. To start from scratch, delete the folder.
 
 You can test the app by running:
 
-`curl -XGET -H 'Authorization: Bearer 123456789' -H "Content-type: application/json" 'http://localhost:5084/scim/v2/Users'`
+`curl -XGET -H 'Authorization: Bearer 123456789' -H "Content-type: application/json" 'http://localhost:5004/scim/v2/Users'`
 
 for localhost access, and:
 

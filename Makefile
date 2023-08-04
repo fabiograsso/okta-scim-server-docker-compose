@@ -2,9 +2,8 @@
 
 start :
 	@docker-compose up -d
-	@sleep 5
-	@bash -c "echo -e '\nngrok URL:\n'"
-	@bash -c "/usr/bin/curl -s http://localhost:8081/api/tunnels | grep -o '\"public_url\": *\"[^\"]*\"' | grep -o '\"[^\"]*\"$$' | sed -e 's/^\"//' -e 's/\"$$//'"
+	@sleep 10
+	@bash -c "/usr/bin/curl -s http://localhost:5001/api/tunnels | grep -o '\"public_url\": *\"[^\"]*\"' | grep -o 'https:\/\/[^\"]*'"
 	@bash -c "echo -e '\n\n'"
 
 stop :
