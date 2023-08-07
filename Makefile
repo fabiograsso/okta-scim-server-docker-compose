@@ -2,7 +2,8 @@
 
 start :
 	@docker-compose up -d
-	@sleep 10
+	@sleep 5
+	@bash -c "echo -e '\n\n'"
 	@bash -c "/usr/bin/curl -s http://localhost:5001/api/tunnels | grep -o '\"public_url\": *\"[^\"]*\"' | grep -o 'https:\/\/[^\"]*'"
 	@bash -c "echo -e '\n\n'"
 
