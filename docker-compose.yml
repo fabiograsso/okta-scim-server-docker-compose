@@ -22,7 +22,7 @@ services:
       POSTGRES_DB: scim  
 
   ngrok:
-    image: ngrok/ngrok:alpine
+    image: ngrok/ngrok:latest
     depends_on:
       - scim-server
     volumes:
