@@ -27,11 +27,11 @@ services:
       db:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "http://localhost:5000/scim/v2/Users"]
+      test: "curl --fail -X GET -H 'Authorization: Bearer 123456789' -H 'Content-type: application/json' http://localhost:5000/scim/v2/Users || exit 1"
       interval: 5s
       timeout: 5s
-      retries: 5
-      start_period: 10s
+      retries: 10
+      start_period: 30s
 
   ngrok:
     image: ngrok/ngrok:latest
@@ -42,6 +42,9 @@ services:
       - ./config/ngrok.yml:/var/lib/ngrok/ngrok.yml:ro
     ports:
       - 5001:4040
+    healthcheck:
+      test: "curl --fail --silent http://localhost:4040/api/tunnels || exit 1"
+     
 
   adminer:
     image: adminer:latest
@@ -59,24 +62,33 @@ services:
         condition: service_healthy
     ports:
       - 5002:8080
-
+    healthcheck:
+      test: "curl --fail --silent --output /dev/null http://localhost:8080 || exit 1"
+    
 # Patch the db in order to autogenerate the uuid for users and groups. This is useful when the SCIM
 # server is used a source and we have to load the data directly in the PostgreSQL using Adminer
   db-patcher:
     image: postgres:15 # Use the same postgres image to get access to psql
     depends_on:
       - scim-server
+    volumes:
+      - ./data/patched.lock:/state/patched.lock
     command: >
       sh -c "
-        echo 'Waiting for the users table to be created...' &&
-        until psql -h db -U root -d scim -c 'SELECT 1 FROM users LIMIT 1;' 2>/dev/null; do
-          sleep 2
-        done &&
-        echo 'Users table found! Applying patch...' &&
-        psql -h db -U root -d scim -c 'CREATE EXTENSION IF NOT EXISTS \"pgcrypto\";' &&
-        psql -h db -U root -d scim -c 'ALTER TABLE users ALTER COLUMN id SET DEFAULT gen_random_uuid();' &&
-        psql -h db -U root -d scim -c 'ALTER TABLE groups ALTER COLUMN id SET DEFAULT gen_random_uuid();' &&
-        echo 'Database patching complete.'
+        if [ -f /state/patched.lock ] && [ \"$(cat /data/patched)\" = \"1\" ]; then
+          echo 'Database already patched. Exiting.';
+        else
+          echo 'Waiting for the users table to be created...' &&
+          until psql -h db -U root -d scim -c 'SELECT 1 FROM users LIMIT 1;' 2>/dev/null; do
+            sleep 2
+          done &&
+          echo 'Users table found! Applying patch...' &&
+          psql -h db -U root -d scim -c 'CREATE EXTENSION IF NOT EXISTS \"pgcrypto\";' &&
+          psql -h db -U root -d scim -c 'ALTER TABLE users ALTER COLUMN id SET DEFAULT gen_random_uuid();' &&
+          psql -h db -U root -d scim -c 'ALTER TABLE groups ALTER COLUMN id SET DEFAULT gen_random_uuid();' &&
+          echo '1' > /state/patched.lock &&
+          echo 'Database patching complete. Flag file updated.';
+        fi
       "
 
 configs:
