@@ -75,7 +75,7 @@ services:
       - ./data/patched.lock:/state/patched.lock
     command: >
       sh -c "
-        if [ -f /state/patched.lock ] && [ \"$(cat /data/patched.lock)\" = \"1\" ]; then
+        if [ -f /state/patched.lock ] && [ \"$(cat /state/patched.lock)\" = \"1\" ]; then
           echo 'Database already patched. Exiting.';
         else
           echo 'Waiting for the users table to be created...' &&
