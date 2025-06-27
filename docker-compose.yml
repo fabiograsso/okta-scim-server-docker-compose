@@ -1,15 +1,7 @@
-version: '3.8'
 services:
 
-  scim-server:
-    build: ./okta-scim-server
-    ports:
-      - 5003:5000
-    depends_on:
-      - db
-
   db:
-    image: postgres:13-alpine
+    image: postgres:15
     volumes:
       - ./data/postgresql:/var/lib/postgresql/data:rw
     ports:
@@ -19,21 +11,86 @@ services:
       DATABASE_HOST: "0.0.0.0"
       POSTGRES_USER: root
       POSTGRES_PASSWORD: root
-      POSTGRES_DB: scim  
+      POSTGRES_DB: scim
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "root", "-d", "scim"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+      
+  scim-server:
+    build: ./okta-scim-server
+    ports:
+      - 5003:5000
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "http://localhost:5000/scim/v2/Users"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   ngrok:
     image: ngrok/ngrok:latest
     depends_on:
-      - scim-server
+      scim-server:
+        condition: service_healthy
     volumes:
       - ./config/ngrok.yml:/var/lib/ngrok/ngrok.yml:ro
     ports:
       - 5001:4040
 
   adminer:
-    image: adminer:standalone
-    restart: always
-    depends_on: 
-      - db
+    image: adminer:latest
+    environment: 
+      ADMINER_DEFAULT_DRIVER: pgsql
+      ADMINER_DEFAULT_DB: scim
+      ADMINER_DEFAULT_SERVER: db
+      ADMINER_DEFAULT_USERNAME: root
+      ADMINER_DEFAULT_PASSWORD: root
+    configs:
+      - source: adminer-index.php
+        target: /var/www/html/index.php
+    depends_on:
+      db:
+        condition: service_healthy
     ports:
       - 5002:8080
+
+# Patch the db in order to autogenerate the uuid for users and groups. This is useful when the SCIM
+# server is used a source and we have to load the data directly in the PostgreSQL using Adminer
+  db-patcher:
+    image: postgres:15 # Use the same postgres image to get access to psql
+    depends_on:
+      - scim-server
+    command: >
+      sh -c "
+        echo 'Waiting for the users table to be created...' &&
+        until psql -h db -U root -d scim -c 'SELECT 1 FROM users LIMIT 1;' 2>/dev/null; do
+          sleep 2
+        done &&
+        echo 'Users table found! Applying patch...' &&
+        psql -h db -U root -d scim -c 'CREATE EXTENSION IF NOT EXISTS \"pgcrypto\";' &&
+        psql -h db -U root -d scim -c 'ALTER TABLE users ALTER COLUMN id SET DEFAULT gen_random_uuid();' &&
+        psql -h db -U root -d scim -c 'ALTER TABLE groups ALTER COLUMN id SET DEFAULT gen_random_uuid();' &&
+        echo 'Database patching complete.'
+      "
+
+configs:
+  adminer-index.php:
+    content: |
+      <?php
+        if(!count($$_GET)) {
+          $$_POST['auth'] = [
+            'server' => $$_ENV['ADMINER_DEFAULT_SERVER'],
+            'username' => $$_ENV['ADMINER_DEFAULT_USERNAME'],
+            'password' => $$_ENV['ADMINER_DEFAULT_PASSWORD'],
+            'driver' => $$_ENV['ADMINER_DEFAULT_DRIVER'],
+            'db'    => $$_ENV['ADMINER_DEFAULT_DB'],
+          ];
+        }
+        include './adminer.php';
+      ?>
